@@ -1,4 +1,4 @@
-# VVERDAD
+# VVERDAD (prototype)
 
 **V**is **V**iva **E**ngineering, **R**eview, **D**esign, and **A**rchitecture **D**atabase
 
