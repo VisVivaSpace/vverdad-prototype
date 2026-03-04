@@ -10,10 +10,8 @@ use bevy_ecs::prelude::*;
 use crate::analysis::AnalysisBundle;
 use crate::analysis::manifest::Manifest;
 use crate::analysis::runner::ExecutedAnalysis;
-use crate::config::VVConfig;
 use crate::error::VVError;
 use crate::events::ProcessingStatus;
-use crate::node::NodeInfo;
 
 // =============================================================================
 // Components
@@ -45,11 +43,9 @@ pub struct OutputValidationError {
 /// System: Validate outputs from executed analyses
 pub fn validate_outputs_system(
     mut commands: Commands,
-    config: Res<VVConfig>,
     analyses: Query<
         (
             Entity,
-            &NodeInfo,
             &AnalysisBundle,
             &crate::analysis::renderer::RenderedAnalysis,
             &ExecutedAnalysis,
@@ -58,17 +54,15 @@ pub fn validate_outputs_system(
     >,
     mut errors: MessageWriter<OutputValidationError>,
 ) {
-    for (entity, node_info, bundle, rendered, executed) in analyses.iter() {
+    for (entity, bundle, rendered, executed) in analyses.iter() {
         // Skip validation if execution didn't succeed
         if !crate::analysis::docker::is_execution_success(&executed.result) {
             continue;
         }
 
-        // Calculate the output directory (parent of the .analysis bundle output)
-        let output_dir = calculate_output_dir(&node_info.path, &config);
-
+        // Outputs are written inside the rendered bundle directory (where Docker mounts)
         let result =
-            validate_analysis_outputs(&bundle.manifest, &output_dir, &rendered.output_path);
+            validate_analysis_outputs(&bundle.manifest, &rendered.output_path);
 
         match result {
             Ok(verified) => {
@@ -122,29 +116,12 @@ pub fn handle_output_validation_errors_system(
 // Pure Functions
 // =============================================================================
 
-/// Calculates the output directory for analysis outputs
-/// (parent directory of the rendered analysis bundle)
-fn calculate_output_dir(bundle_source_path: &Path, config: &VVConfig) -> PathBuf {
-    // Get the relative path of the bundle from input root
-    let input_root = crate::config::input_path(config);
-    let relative = bundle_source_path
-        .strip_prefix(&input_root)
-        .unwrap_or(bundle_source_path);
-
-    // The output directory is the parent of the bundle in output/
-    let output_bundle = crate::config::output_path(config).join(relative);
-    output_bundle
-        .parent()
-        .unwrap_or(&output_bundle)
-        .to_path_buf()
-}
-
-/// Validates that all expected outputs exist
-/// Returns Ok with list of verified files, or Err with list of missing files
+/// Validates that all expected outputs exist in the rendered bundle directory.
+/// Docker mounts this directory as `/analysis`, so outputs are written here.
+/// Returns Ok with list of verified files, or Err with list of missing files.
 pub fn validate_analysis_outputs(
     manifest: &Manifest,
     output_dir: &Path,
-    _bundle_output_path: &Path,
 ) -> Result<Vec<PathBuf>, (Vec<String>, Vec<PathBuf>)> {
     let mut verified = Vec::new();
     let mut missing = Vec::new();
@@ -223,7 +200,7 @@ Analysis(
 
         let manifest = create_test_manifest_with_outputs(vec!["result.json", "report.pdf"]);
 
-        let result = validate_analysis_outputs(&manifest, output_dir, output_dir);
+        let result = validate_analysis_outputs(&manifest, output_dir);
         assert!(result.is_ok());
 
         let verified = result.unwrap();
@@ -241,7 +218,7 @@ Analysis(
 
         let manifest = create_test_manifest_with_outputs(vec!["result.json", "report.pdf"]);
 
-        let result = validate_analysis_outputs(&manifest, output_dir, output_dir);
+        let result = validate_analysis_outputs(&manifest, output_dir);
         assert!(result.is_err());
 
         let (missing, _verified) = result.unwrap_err();
@@ -256,7 +233,7 @@ Analysis(
 
         let manifest = create_test_manifest_with_outputs(vec![]);
 
-        let result = validate_analysis_outputs(&manifest, output_dir, output_dir);
+        let result = validate_analysis_outputs(&manifest, output_dir);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }
