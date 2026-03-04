@@ -205,7 +205,7 @@ fn execute_analysis(
 ) -> Result<ExecutionResult, VVError> {
     let docker_config = create_docker_config(
         &manifest.image,
-        &format!("python {}", manifest.entrypoint),
+        &manifest.entrypoint,
         output_path,
         &manifest.resources,
     );

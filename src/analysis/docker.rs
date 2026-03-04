@@ -200,7 +200,11 @@ async fn create_container(
 
     let container_config = Config {
         image: Some(config.image.clone()),
-        cmd: Some(vec![config.entrypoint.clone()]),
+        cmd: Some(vec![
+            "/bin/sh".to_string(),
+            "-c".to_string(),
+            config.entrypoint.clone(),
+        ]),
         working_dir: Some(config.working_dir.clone()),
         host_config: Some(host_config),
         ..Default::default()
