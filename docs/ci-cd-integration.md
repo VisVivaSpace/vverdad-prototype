@@ -46,19 +46,24 @@ Docker is optional. If unavailable, analysis bundles are discovered and rendered
 
 ## Installation in CI
 
-### From Source
+### From Git
+
+Install `vv` directly from the repository:
 
 ```bash
-cargo install --path .
+cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
 ```
+
+The `vv init` generated workflows use this approach with binary caching so the install only runs when the cache is cold.
 
 ### Caching
 
-Cache these directories between CI runs for faster builds:
+Cache the installed binary between CI runs. The generated GitHub Actions workflow caches `~/.cargo/bin/vv` so subsequent runs skip the install step entirely. For GitLab CI, the `$CARGO_HOME/bin/` directory is cached.
+
+For a cold cache, `cargo install` also benefits from caching these directories:
 
 - `~/.cargo/registry` — downloaded crates
 - `~/.cargo/git` — git-based dependencies
-- `target/` — compiled artifacts
 
 ### Docker-in-Docker
 
@@ -72,7 +77,7 @@ If your pipeline needs analysis bundle execution, the CI runner must have Docker
 
 > **Quick start**: Run `vv init --github` to generate this file automatically.
 
-Complete workflow for building VVERDAD and rendering a project:
+Complete workflow that installs `vv` from git and renders a project:
 
 ```yaml
 # .github/workflows/vverdad.yml
@@ -94,20 +99,19 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
+      - name: Cache vv binary
+        id: cache-vv
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/bin/vv
+          key: ${{ runner.os }}-vv-${{ hashFiles('.github/workflows/vverdad.yml') }}
 
-      - name: Build vv
-        run: cargo build --release
+      - name: Install vv
+        if: steps.cache-vv.outputs.cache-hit != 'true'
+        run: cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
 
       - name: Render project
-        run: ./target/release/vv project/ -d artifacts/ -y
+        run: vv . -d artifacts/ -y
 
       - name: Upload outputs
         uses: actions/upload-artifact@v4
@@ -116,43 +120,7 @@ jobs:
           path: artifacts/_output/
 ```
 
-### With Docker for Analysis Execution
-
-Add a Docker service container to enable analysis bundle execution:
-
-```yaml
-jobs:
-  render-and-execute:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build vv
-        run: cargo build --release
-
-      # Docker is available by default on ubuntu-latest runners
-      - name: Render and execute
-        run: ./target/release/vv project/ -d artifacts/ -y
-
-      - name: Upload outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: vverdad-output
-          path: artifacts/_output/
-```
+The binary is cached between runs, so the install step only runs on cache miss. To force a rebuild (e.g. after a new vv release), change the workflow file or clear the cache.
 
 GitHub-hosted `ubuntu-latest` runners include Docker by default, so analysis bundles execute without additional setup.
 
@@ -162,7 +130,7 @@ Reference: [GitHub Actions documentation](https://docs.github.com/en/actions)
 
 > **Quick start**: Run `vv init --gitlab` to generate this file automatically.
 
-Complete pipeline with separate build and render stages:
+Complete pipeline that installs `vv` from git and renders a project:
 
 ```yaml
 # .gitlab-ci.yml
@@ -173,26 +141,26 @@ variables:
 
 cache:
   paths:
-    - .cargo/registry
-    - .cargo/git
-    - target/
+    - $CARGO_HOME/bin/
+    - $CARGO_HOME/registry/
+    - $CARGO_HOME/git/
 
 stages:
-  - build
+  - install
   - render
 
-build:
-  stage: build
+install:
+  stage: install
   script:
-    - cargo build --release
+    - cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
   artifacts:
     paths:
-      - target/release/vv
+      - $CARGO_HOME/bin/vv
 
 render:
   stage: render
   script:
-    - ./target/release/vv project/ -d output/ -y
+    - $CARGO_HOME/bin/vv . -d output/ -y
   artifacts:
     paths:
       - output/_output/
@@ -200,42 +168,9 @@ render:
 
 ### With Docker Execution
 
-To run analysis bundles in GitLab CI, use Docker-in-Docker:
+To run analysis bundles in GitLab CI, add a Docker-in-Docker stage:
 
 ```yaml
-# .gitlab-ci.yml
-image: rust:latest
-
-variables:
-  CARGO_HOME: $CI_PROJECT_DIR/.cargo
-
-cache:
-  paths:
-    - .cargo/registry
-    - .cargo/git
-    - target/
-
-stages:
-  - build
-  - render
-  - execute
-
-build:
-  stage: build
-  script:
-    - cargo build --release
-  artifacts:
-    paths:
-      - target/release/vv
-
-render:
-  stage: render
-  script:
-    - ./target/release/vv project/ -d output/ -y
-  artifacts:
-    paths:
-      - output/_output/
-
 execute:
   stage: execute
   image: docker:latest
@@ -245,9 +180,9 @@ execute:
     DOCKER_HOST: tcp://docker:2375
   before_script:
     - apk add --no-cache cargo
-    - cargo build --release
+    - cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
   script:
-    - ./target/release/vv project/ -d output/ -y
+    - $CARGO_HOME/bin/vv . -d output/ -y
   artifacts:
     paths:
       - output/_output/

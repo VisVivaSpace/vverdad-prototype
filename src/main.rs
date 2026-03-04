@@ -9,30 +9,47 @@ use vverdad::{create_app_with_output, run_app};
 
 #[derive(Parser, Debug)]
 #[command(name = "vv", args_conflicts_with_subcommands = true)]
-#[command(author, version, about = "VVERDAD Data Processing Engine")]
+#[command(author, version, about = "VVERDAD — data processing engine for aerospace vehicle design")]
 #[command(
-    long_about = "Process aerospace vehicle design data and render templates.
+    long_about = "VVERDAD — data processing engine for aerospace vehicle design.
 
-Reads data files (JSON, YAML, TOML, RON, CSV, XLSX) from a project directory
-or .vv archive, organizes them by folder/file structure, and renders Jinja2
-templates to generate reports, analysis scripts, and other CI/CD artifacts.
+Loads design data files (JSON, YAML, TOML, RON, CSV, XLSX, and binary formats)
+from a project directory or .vv archive, makes them available via dot-notation
+derived from the folder/file structure, and renders Jinja2-compatible templates
+to produce reports, analysis inputs, and other engineering artifacts.
 
-By default, outputs are written to the _output subdirectory inside the input.
+Templates can reference physical quantities with unit conversion (e.g. to(\"lbf\"))
+and time epochs with system conversion (e.g. to_tdb). Analysis bundles in
+.analysis/ directories execute in Docker containers, with results feeding back
+into the data tree for downstream templates.
 
-OUTPUT OPTIONS:
-    -d <DIR>   Copy project to directory, write _output/ inside
-    -f <FILE>  Create .vv archive with project + _output/
+Outputs are written to _output/ inside the project by default.",
+    after_long_help = "WORKFLOW:
+  1. Organize design data in a project directory
+  2. Write Jinja2 templates (.j2) that reference the data
+  3. Run 'vv ./project' to render all templates
+  4. Rendered outputs appear in _output/
 
-SUBCOMMANDS:
-    init       Generate CI/CD configuration files
+CI/CD SETUP:
+  Generate pipeline configs and git hooks with 'vv init':
+
+    vv init                      Generate all CI/CD configs (GitHub, GitLab, hooks)
+    vv init --github ./project   GitHub Actions workflow only
+    vv init --gitlab             GitLab CI/CD pipeline only
+    vv init --hooks              Git pre-commit and pre-push hooks only
+
+  Then: review generated files, run 'git config core.hooksPath .githooks'
+  if using hooks, and commit to activate.
 
 EXAMPLES:
-    vv ./my-project              Process in-place, output to ./my-project/_output/
-    vv project.vv                Process archive in-place
-    vv ./project -d ./release    Copy to ./release/, output to ./release/_output/
-    vv ./project -f release.vv   Create release.vv with project + _output/
-    vv init                      Generate all CI/CD configs in current directory
-    vv init --github ./project   Generate GitHub Actions workflow"
+    vv ./my-project              Render in-place to ./my-project/_output/
+    vv project.vv                Render from a .vv archive
+    vv ./project -d ./release    Copy project to ./release/, render there
+    vv ./project -f release.vv   Package project + outputs into an archive
+
+DOCUMENTATION:
+    See docs/ci-cd-integration.md for full CI/CD guide
+    See docs/template-guide.md for template authoring reference"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -44,7 +61,19 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Generate CI/CD configuration files for a VVERDAD project
+    /// Generate CI/CD pipeline configs and git hooks for a VVERDAD project
+    #[command(
+        after_help = "GENERATED FILES:
+    .github/workflows/vverdad.yml   GitHub Actions: build, render, upload artifacts
+    .gitlab-ci.yml                  GitLab CI: build + render stages
+    .githooks/pre-commit            Validate templates before each commit
+    .githooks/pre-push              Full render validation before push
+
+NEXT STEPS:
+    1. Review and customize the generated files
+    2. For git hooks: git config core.hooksPath .githooks
+    3. Commit and push to activate CI/CD"
+    )]
     Init(InitArgs),
 }
 

@@ -51,20 +51,19 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
+      - name: Cache vv binary
+        id: cache-vv
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/bin/vv
+          key: ${{ runner.os }}-vv-${{ hashFiles('.github/workflows/vverdad.yml') }}
 
-      - name: Build vv
-        run: cargo build --release
+      - name: Install vv
+        if: steps.cache-vv.outputs.cache-hit != 'true'
+        run: cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
 
       - name: Render project
-        run: ./target/release/vv . -d artifacts/ -y
+        run: vv . -d artifacts/ -y
 
       - name: Upload outputs
         uses: actions/upload-artifact@v4
@@ -90,26 +89,26 @@ variables:
 
 cache:
   paths:
-    - .cargo/registry
-    - .cargo/git
-    - target/
+    - $CARGO_HOME/bin/
+    - $CARGO_HOME/registry/
+    - $CARGO_HOME/git/
 
 stages:
-  - build
+  - install
   - render
 
-build:
-  stage: build
+install:
+  stage: install
   script:
-    - cargo build --release
+    - cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
   artifacts:
     paths:
-      - target/release/vv
+      - $CARGO_HOME/bin/vv
 
 render:
   stage: render
   script:
-    - ./target/release/vv . -d output/ -y
+    - $CARGO_HOME/bin/vv . -d output/ -y
   artifacts:
     paths:
       - output/_output/

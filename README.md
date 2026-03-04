@@ -80,8 +80,17 @@ vv /path/to/project -f output.vv
 
 # Generate CI/CD configuration files
 vv init
-vv --github ./project    # GitHub Actions only
+vv init --github ./project    # GitHub Actions only
 vv init --hooks ./project     # Git hooks only
+```
+
+### Example Mission Data
+
+The [vverdad-test-mission](https://github.com/VisVivaSpace/vverdad-test-mission) repository contains a complete example project with mission design data, templates, and analysis bundles. Clone it to try VVERDAD on a realistic dataset:
+
+```bash
+git clone https://github.com/VisVivaSpace/vverdad-test-mission.git
+vv ./vverdad-test-mission
 ```
 
 ## Project Structure
