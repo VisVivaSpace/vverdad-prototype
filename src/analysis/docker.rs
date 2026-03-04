@@ -285,18 +285,34 @@ fn generate_container_id() -> String {
     )
 }
 
-/// Creates a DockerConfig from analysis bundle data
+/// Creates a DockerConfig from analysis bundle data.
+/// Ensures the host path is absolute — Docker bind mounts require it.
 pub fn create_docker_config(
     image: &str,
     entrypoint: &str,
     bundle_output_path: &Path,
     resources: &ResourceLimits,
 ) -> DockerConfig {
+    // Docker bind mounts require absolute paths.
+    // canonicalize() resolves symlinks and requires the path to exist;
+    // fall back to joining with cwd for paths that don't exist yet.
+    let absolute_path = if bundle_output_path.is_absolute() {
+        bundle_output_path.to_path_buf()
+    } else {
+        bundle_output_path
+            .canonicalize()
+            .unwrap_or_else(|_| {
+                std::env::current_dir()
+                    .unwrap_or_default()
+                    .join(bundle_output_path)
+            })
+    };
+
     DockerConfig {
         image: image.to_string(),
         entrypoint: entrypoint.to_string(),
         working_dir: "/analysis".to_string(),
-        host_path: bundle_output_path.to_string_lossy().to_string(),
+        host_path: absolute_path.to_string_lossy().to_string(),
         resources: resources.clone(),
     }
 }
@@ -329,6 +345,28 @@ mod tests {
         assert_eq!(config.working_dir, "/analysis");
         assert_eq!(config.host_path, "/tmp/analysis");
         assert_eq!(config.resources.cpu_cores, 2.0);
+    }
+
+    #[test]
+    fn test_docker_config_relative_path_becomes_absolute() {
+        let resources = ResourceLimits {
+            cpu_cores: 1.0,
+            memory_mb: 512,
+            timeout_seconds: 30,
+        };
+
+        let config = create_docker_config(
+            "python:3.11",
+            "python script.py",
+            Path::new("artifacts/_output/analysis"),
+            &resources,
+        );
+
+        assert!(
+            Path::new(&config.host_path).is_absolute(),
+            "Docker bind mount path must be absolute, got: {}",
+            config.host_path
+        );
     }
 
     #[test]
