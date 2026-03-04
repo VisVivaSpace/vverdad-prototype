@@ -14,6 +14,7 @@ use bollard::container::{
     Config, CreateContainerOptions, LogOutput, LogsOptions, RemoveContainerOptions,
     StartContainerOptions, WaitContainerOptions,
 };
+use bollard::image::CreateImageOptions;
 use bollard::models::{HostConfig, Mount, MountTypeEnum};
 use futures_util::StreamExt;
 
@@ -108,6 +109,9 @@ async fn run_container_async(
     let container_name = format!("vverdad-{}", generate_container_id());
     let start_time = Instant::now();
 
+    // Pull image if not available locally
+    ensure_image(docker, &config.image).await?;
+
     // Create container
     let container_id = create_container(docker, &container_name, config).await?;
 
@@ -146,6 +150,34 @@ async fn run_container_async(
         }),
         Err(e) => Err(e),
     }
+}
+
+/// Pulls a Docker image if it is not already available locally.
+async fn ensure_image(docker: &Docker, image: &str) -> Result<(), VVError> {
+    // Check if image exists locally
+    if docker.inspect_image(image).await.is_ok() {
+        return Ok(());
+    }
+
+    eprintln!("Pulling Docker image: {}", image);
+
+    let (repo, tag) = match image.rsplit_once(':') {
+        Some((r, t)) => (r.to_string(), t.to_string()),
+        None => (image.to_string(), "latest".to_string()),
+    };
+
+    let options = CreateImageOptions {
+        from_image: repo,
+        tag,
+        ..Default::default()
+    };
+
+    let mut stream = docker.create_image(Some(options), None, None);
+    while let Some(result) = stream.next().await {
+        result.map_err(|e| VVError::DockerImageNotFound(format!("{}: {}", image, e)))?;
+    }
+
+    Ok(())
 }
 
 async fn create_container(
