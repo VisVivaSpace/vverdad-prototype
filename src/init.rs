@@ -71,14 +71,15 @@ jobs:
           name: vverdad-output
           path: artifacts/_output/
 
-      # Uncomment to commit rendered outputs back to the repository:
-      # - name: Commit outputs
-      #   run: |
-      #     git config user.name "VVERDAD CI"
-      #     git config user.email "vverdad@ci"
-      #     git add _output/
-      #     git commit -m "Update rendered outputs" || true
-      #     git push
+      - name: Commit outputs
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "VVERDAD CI"
+          git config user.email "vverdad@ci"
+          cp -r artifacts/_output/ _output/
+          git add _output/
+          git diff --cached --quiet || git commit -m "Update rendered outputs"
+          git push
 "#;
 
 const GITLAB_CI: &str = r#"# .gitlab-ci.yml
@@ -112,14 +113,13 @@ render:
   artifacts:
     paths:
       - output/_output/
-
-  # Uncomment to commit rendered outputs back to the repository:
-  # after_script:
-  #   - git config user.name "VVERDAD CI"
-  #   - git config user.email "vverdad@ci"
-  #   - git add _output/
-  #   - git commit -m "Update rendered outputs" || true
-  #   - git push
+  after_script:
+    - git config user.name "VVERDAD CI"
+    - git config user.email "vverdad@ci"
+    - cp -r output/_output/ _output/
+    - git add _output/
+    - git diff --cached --quiet || git commit -m "Update rendered outputs"
+    - git push
 "#;
 
 const PRE_COMMIT_HOOK: &str = r#"#!/bin/sh

@@ -118,9 +118,21 @@ jobs:
         with:
           name: vverdad-output
           path: artifacts/_output/
+
+      - name: Commit outputs
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "VVERDAD CI"
+          git config user.email "vverdad@ci"
+          cp -r artifacts/_output/ _output/
+          git add _output/
+          git diff --cached --quiet || git commit -m "Update rendered outputs"
+          git push
 ```
 
 The binary is cached between runs, so the install step only runs on cache miss. To force a rebuild (e.g. after a new vv release), change the workflow file or clear the cache.
+
+Rendered outputs are committed back to the repository on push (not on pull requests, to avoid polluting PR branches). The `git diff --cached --quiet` check prevents empty commits when outputs haven't changed.
 
 GitHub-hosted `ubuntu-latest` runners include Docker by default, so analysis bundles execute without additional setup.
 
@@ -164,6 +176,13 @@ render:
   artifacts:
     paths:
       - output/_output/
+  after_script:
+    - git config user.name "VVERDAD CI"
+    - git config user.email "vverdad@ci"
+    - cp -r output/_output/ _output/
+    - git add _output/
+    - git diff --cached --quiet || git commit -m "Update rendered outputs"
+    - git push
 ```
 
 ### With Docker Execution
