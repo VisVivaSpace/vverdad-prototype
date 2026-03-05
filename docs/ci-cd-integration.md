@@ -125,7 +125,7 @@ jobs:
           git config user.name "VVERDAD CI"
           git config user.email "vverdad@ci"
           cp -r artifacts/_output/ _output/
-          git add _output/
+          git add -f _output/
           git diff --cached --quiet || git commit -m "Update rendered outputs"
           git push
 ```
@@ -180,7 +180,7 @@ render:
     - git config user.name "VVERDAD CI"
     - git config user.email "vverdad@ci"
     - cp -r output/_output/ _output/
-    - git add _output/
+    - git add -f _output/
     - git diff --cached --quiet || git commit -m "Update rendered outputs"
     - git push
 ```
