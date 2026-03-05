@@ -51,19 +51,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache vv binary
-        id: cache-vv
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/vv
-          key: ${{ runner.os }}-vv-${{ hashFiles('.github/workflows/vverdad.yml') }}
-
       - name: Install vv
-        if: steps.cache-vv.outputs.cache-hit != 'true'
-        run: cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
+        run: |
+          curl -sL https://github.com/VisVivaSpace/vverdad-prototype/releases/latest/download/vv-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv vv /usr/local/bin/
 
       - name: Render project
         run: vv . -d artifacts/ -y

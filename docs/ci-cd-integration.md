@@ -46,24 +46,24 @@ Docker is optional. If unavailable, analysis bundles are discovered and rendered
 
 ## Installation in CI
 
+### Prebuilt Binary (Recommended)
+
+Download the latest release binary:
+
+```bash
+curl -sL https://github.com/VisVivaSpace/vverdad-prototype/releases/latest/download/vv-x86_64-unknown-linux-gnu.tar.gz | tar xz
+sudo mv vv /usr/local/bin/
+```
+
+The `vv init` generated workflows use this approach. No Rust toolchain required.
+
 ### From Git
 
-Install `vv` directly from the repository:
+Alternatively, build from source:
 
 ```bash
 cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
 ```
-
-The `vv init` generated workflows use this approach with binary caching so the install only runs when the cache is cold.
-
-### Caching
-
-Cache the installed binary between CI runs. The generated GitHub Actions workflow caches `~/.cargo/bin/vv` so subsequent runs skip the install step entirely. For GitLab CI, the `$CARGO_HOME/bin/` directory is cached.
-
-For a cold cache, `cargo install` also benefits from caching these directories:
-
-- `~/.cargo/registry` — downloaded crates
-- `~/.cargo/git` — git-based dependencies
 
 ### Docker-in-Docker
 
@@ -77,7 +77,7 @@ If your pipeline needs analysis bundle execution, the CI runner must have Docker
 
 > **Quick start**: Run `vv init --github` to generate this file automatically.
 
-Complete workflow that installs `vv` from git and renders a project:
+Complete workflow that downloads a prebuilt `vv` binary and renders a project:
 
 ```yaml
 # .github/workflows/vverdad.yml
@@ -99,19 +99,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache vv binary
-        id: cache-vv
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/vv
-          key: ${{ runner.os }}-vv-${{ hashFiles('.github/workflows/vverdad.yml') }}
-
       - name: Install vv
-        if: steps.cache-vv.outputs.cache-hit != 'true'
-        run: cargo install --git https://github.com/VisVivaSpace/vverdad-prototype.git
+        run: |
+          curl -sL https://github.com/VisVivaSpace/vverdad-prototype/releases/latest/download/vv-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv vv /usr/local/bin/
 
       - name: Render project
         run: vv . -d artifacts/ -y
