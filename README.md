@@ -140,6 +140,7 @@ VVERDAD's approach is applicable broadly to aerospace design problems:
 
 ## Documentation
 
+- [User's Guide](docs/users-guide.md) — Getting started with installation, project setup, and how-to examples
 - [Template Guide](docs/template-guide.md) — Template authoring with filters and data access
 - [Directory Structure](docs/directory-structure.md) — Project directory conventions
 - [Value Type Specification](docs/value-type-spec.md) — The VVERDAD Value enum implementation
