@@ -164,7 +164,14 @@ See the [docs/](docs/) directory for detailed technical documentation.
 
 ## Prototype Status
 
-This is the Phase I SBIR prototype. It demonstrates the core data processing pipeline — data ingestion, template rendering, and containerized analysis execution. A Phase II effort would mature this into a production-ready tool with MBSE visualization, mission planning views, and expanded analysis integration.
+This prototype demonstrates the core data processing pipeline — data ingestion, template rendering, and containerized analysis execution. A Phase II effort would mature this into a production-ready tool with MBSE visualization, mission planning views, and expanded analysis integration.
+
+## Acknowledgement
+
+This research was supported by the National Aeronautics and Space Administration
+(NASA) Small Business Innovative Research (SBIR) program under Contract Number 80NSSC25C0396.
+Any opinions, findings, and conclusions or recommendations expressed in this material are those of the
+author and do not necessarily reflect the views of the National Aeronautics and Space Administration.
 
 ## License
 
